@@ -1,0 +1,21 @@
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Q directory (AI assistant files)
+.q/
+
+# Helm
+*.tgz
+charts/
+
+# Temporary files
+*.tmp
+*.temp

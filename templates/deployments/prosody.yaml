@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "meetkit.fullname" . }}-prosody
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prosody
+spec:
+  replicas: {{ .Values.replicaCount.prosody }}
+  selector:
+    matchLabels:
+      {{- include "meetkit.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: prosody
+  template:
+    metadata:
+      labels:
+        {{- include "meetkit.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: prosody
+    spec:
+      containers:
+      - name: prosody
+        image: "{{ .Values.image.prosody.repository }}:{{ .Values.image.prosody.tag }}"
+        imagePullPolicy: {{ .Values.image.prosody.pullPolicy }}
+        envFrom:
+        - configMapRef:
+            name: {{ include "meetkit.fullname" . }}-config
+        env:
+        - name: JICOFO_COMPONENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.credentials.secretName }}
+              key: jicofo-password
+        - name: JVB_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.credentials.secretName }}
+              key: jvb-password
+        - name: PROSODY_C2S_REQUIRE_ENCRYPTION
+          value: "false"
+        - name: PROSODY_S2S_REQUIRE_ENCRYPTION
+          value: "false"
+        - name: GLOBAL_CONFIG
+          value: |-
+            c2s_require_encryption = false
+            s2s_require_encryption = false
+            allow_unencrypted_plain_auth = true
+            cross_domain_bosh = true
+            consider_bosh_secure = true
+            bosh_max_inactivity = 120
+            bosh_max_wait = 120
+            bosh_max_polling = 10
+            websocket_keepalive_interval = 30
+            c2s_timeout = 300
+            c2s_stanza_size_limit = 10485760
+        ports:
+        - containerPort: 5222
+          name: xmpp-c2s
+        - containerPort: 5347
+          name: xmpp-component
+        - containerPort: 5280
+          name: bosh
+        resources:
+          {{- toYaml .Values.resources.prosody | nindent 10 }}
+        livenessProbe:
+          tcpSocket:
+            port: 5222
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 5222
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        volumeMounts:
+        - name: prosody-plugins
+          mountPath: /prosody-plugins-custom
+        - name: prosody-data
+          mountPath: /config/data
+        {{- if .Values.auth.enableLobby }}
+        - name: lobby-plugin
+          mountPath: /prosody-plugins-custom/mod_muc_lobby_autostart.lua
+          subPath: mod_muc_lobby_autostart.lua
+        {{- end }}
+      volumes:
+      - name: prosody-plugins
+        emptyDir: {}
+      - name: prosody-data
+        emptyDir: {}
+      {{- if .Values.auth.enableLobby }}
+      - name: lobby-plugin
+        configMap:
+          name: {{ include "meetkit.fullname" . }}-prosody-plugins
+      {{- end }}

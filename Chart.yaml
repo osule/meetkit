@@ -1,0 +1,17 @@
+apiVersion: v2
+name: meetkit
+description: Production-ready Helm chart for self-hosting Jitsi Meet on Kubernetes
+type: application
+version: 1.0.0
+appVersion: "stable-10532-1"
+keywords:
+  - jitsi
+  - video-conferencing
+  - webrtc
+  - self-hosted
+home: https://github.com/osule/meetkit
+sources:
+  - https://github.com/jitsi/jitsi-meet
+maintainers:
+  - name: Oluwafemi Sule
+    email: 13223818+osule@users.noreply.github.com

@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "meetkit.fullname" . }}-jvb
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jvb
+spec:
+  replicas: {{ .Values.replicaCount.jvb }}
+  selector:
+    matchLabels:
+      {{- include "meetkit.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: jvb
+  template:
+    metadata:
+      labels:
+        {{- include "meetkit.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: jvb
+    spec:
+      containers:
+      - name: jvb
+        image: "{{ .Values.image.jvb.repository }}:{{ .Values.image.jvb.tag }}"
+        imagePullPolicy: {{ .Values.image.jvb.pullPolicy }}
+        envFrom:
+        - configMapRef:
+            name: {{ include "meetkit.fullname" . }}-config
+        env:
+        - name: JVB_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.credentials.secretName }}
+              key: jvb-password
+        - name: JVB_PORT
+          value: "10000"
+        - name: JVB_ADVERTISE_IPS
+          value: {{ join "," .Values.jvb.advertiseIps | quote }}
+        - name: JVB_TCP_HARVESTER_DISABLED
+          value: "true"
+        - name: JVB_TCP_PORT
+          value: "4443"
+        - name: JVB_STUN_SERVERS
+          value: "meet-jit-si-turnrelay.jitsi.net:443"
+        - name: XMPP_SERVER
+          value: "{{ include "meetkit.fullname" . }}-prosody.{{ .Release.Namespace }}.svc.cluster.local"
+        ports:
+        - containerPort: 10000
+          {{- if .Values.jvb.hostPort }}
+          hostPort: {{ .Values.jvb.hostPort }}
+          {{- end }}
+          name: rtp
+          protocol: UDP
+        - containerPort: 4443
+          name: tcp-fallback
+        resources:
+          {{- toYaml .Values.resources.jvb | nindent 10 }}
+        volumeMounts:
+        - name: jvb-config
+          mountPath: /config
+      volumes:
+      - name: jvb-config
+        emptyDir: {}

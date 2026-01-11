@@ -1,0 +1,82 @@
+🎉 MeetKit has been installed!
+
+Your Jitsi Meet instance is being deployed to {{ .Release.Namespace }}.
+
+📋 DEPLOYMENT INFO:
+  Release Name: {{ .Release.Name }}
+  Namespace: {{ .Release.Namespace }}
+  Domain: {{ .Values.domain }}
+  Auth Type: {{ .Values.auth.type }}
+
+🔐 REQUIRED SECRETS:
+{{- if not .Values.credentials.secretName }}
+  ⚠️  WARNING: credentials.secretName is not set!
+{{- else }}
+  ✓ Credentials: {{ .Values.credentials.secretName }}
+{{- end }}
+
+{{- if eq .Values.auth.type "jwt" }}
+{{- if not .Values.auth.jwt.secretName }}
+  ⚠️  WARNING: auth.jwt.secretName is not set!
+{{- else }}
+  ✓ JWT Secret: {{ .Values.auth.jwt.secretName }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.auth.oauth.google.enabled }}
+{{- if not .Values.auth.oauth.google.secretName }}
+  ⚠️  WARNING: auth.oauth.google.secretName is not set!
+{{- else }}
+  ✓ Google OAuth: {{ .Values.auth.oauth.google.secretName }}
+{{- end }}
+{{- end }}
+
+📡 NETWORKING:
+  JVB Advertise IPs: {{ join ", " .Values.jvb.advertiseIps }}
+  JVB NodePort: {{ .Values.jvb.nodePort }}
+  Ingress: {{ if .Values.ingress.enabled }}Enabled ({{ .Values.ingress.className }}){{ else }}Disabled{{ end }}
+
+🚀 NEXT STEPS:
+
+1. Check deployment status:
+   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+2. Watch for all pods to be ready:
+   kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Release.Namespace }} --timeout=300s
+
+3. Check ingress:
+   kubectl get ingress -n {{ .Release.Namespace }}
+
+4. Access your Jitsi Meet instance:
+   https://{{ .Values.domain }}
+
+{{- if eq .Values.auth.type "jwt" }}
+
+🔑 JWT AUTHENTICATION:
+   - Moderators must authenticate with valid JWT tokens
+   - Guests {{ if .Values.auth.enableGuests }}CAN{{ else }}CANNOT{{ end }} join meetings
+   {{- if .Values.auth.enableLobby }}
+   - Lobby is ENABLED - guests must be approved by moderators
+   {{- end }}
+
+{{- end }}
+
+{{- if .Values.auth.oauth.google.enabled }}
+
+🔐 GOOGLE OAUTH:
+   - OAuth portal: https://{{ .Values.domain }}/auth
+   - Users who authenticate via Google become moderators
+   - Configure redirect URI: https://{{ .Values.domain }}/auth/callback
+
+{{- end }}
+
+📚 DOCUMENTATION:
+   - GitHub: https://github.com/yourusername/meetkit
+   - Issues: https://github.com/yourusername/meetkit/issues
+
+🐛 TROUBLESHOOTING:
+   - View logs: kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }} --tail=100
+   - Check JVB: kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=jvb
+   - Check Prosody: kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=prosody
+
+💡 TIP: Make sure your firewall allows UDP traffic on port {{ .Values.jvb.nodePort }} for JVB!

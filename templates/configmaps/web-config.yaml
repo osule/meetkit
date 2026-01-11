@@ -1,0 +1,134 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "meetkit.fullname" . }}-web-config
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+data:
+  config.js: |
+    var config = {
+        hosts: {
+            domain: '{{ .Values.xmppDomain }}',
+            muc: 'conference.{{ .Values.xmppDomain }}',
+            focus: 'focus.{{ .Values.xmppDomain }}'
+        },
+        bosh: '//{{ .Values.domain }}/http-bind',
+        websocket: 'wss://{{ .Values.domain }}/xmpp-websocket',
+        
+        {{- if eq .Values.auth.type "jwt" }}
+        enableUserRolesBasedOnToken: true,
+        {{- end }}
+        
+        {{- if .Values.auth.enableLobby }}
+        enableLobby: true,
+        {{- end }}
+        
+        enableWelcomePage: {{ .Values.features.enableWelcomePage }},
+        enableClosePage: false,
+        
+        p2p: {
+            enabled: {{ .Values.features.enableP2p }},
+            stunServers: [
+                { urls: 'stun:meet-jit-si-turnrelay.jitsi.net:443' }
+            ]
+        },
+        
+        useStunTurn: true,
+        
+        resolution: 720,
+        constraints: {
+            video: {
+                height: { ideal: 720, max: 720, min: 180 },
+                width: { ideal: 1280, max: 1280, min: 320 }
+            }
+        },
+        
+        disableSimulcast: {{ not .Values.features.enableSimulcast }},
+        enableLayerSuspension: {{ .Values.features.enableLayerSuspension }},
+        
+        startBitrate: "{{ .Values.features.startBitrate }}",
+        
+        desktopSharingFrameRate: {
+            min: {{ .Values.features.desktopSharingFrameRate.min }},
+            max: {{ .Values.features.desktopSharingFrameRate.max }}
+        },
+        
+        enableNoAudioDetection: {{ .Values.features.enableNoAudioDetection }},
+        enableNoisyMicDetection: true,
+        
+        channelLastN: -1,
+        
+        deploymentInfo: {
+            shard: "{{ .Release.Name }}",
+            region: "{{ .Values.region }}",
+            userRegion: "{{ .Values.region }}"
+        }
+    };
+
+  interface_config.js: |
+    var interfaceConfig = {
+        APP_NAME: 'MeetKit',
+        PROVIDER_NAME: '{{ .Values.domain }}',
+        SHOW_JITSI_WATERMARK: false,
+        SHOW_WATERMARK_FOR_GUESTS: false,
+        DEFAULT_BACKGROUND: '#474747',
+        DEFAULT_LOGO_URL: '',
+        DEFAULT_WELCOME_PAGE_LOGO_URL: '',
+        
+        TOOLBAR_BUTTONS: [
+            'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+            'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+            'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
+            'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+            'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone'
+        ],
+        
+        SETTINGS_SECTIONS: ['devices', 'language', 'moderator', 'profile', 'calendar'],
+        
+        MOBILE_APP_PROMO: false,
+        HIDE_INVITE_MORE_HEADER: false,
+        
+        RECENT_LIST_ENABLED: true,
+        
+        ENABLE_FEEDBACK_ANIMATION: false,
+        DISABLE_FOCUS_INDICATOR: false,
+        DISABLE_DOMINANT_SPEAKER_INDICATOR: false,
+        
+        DISABLE_RINGING: false,
+        AUDIO_LEVEL_PRIMARY_COLOR: 'rgba(255,255,255,0.4)',
+        AUDIO_LEVEL_SECONDARY_COLOR: 'rgba(255,255,255,0.2)',
+        
+        POLICY_LOGO: null,
+        LOCAL_THUMBNAIL_RATIO: 16 / 9,
+        REMOTE_THUMBNAIL_RATIO: 1,
+        
+        LIVE_STREAMING_HELP_LINK: 'https://jitsi.org/live',
+        
+        MOBILE_DOWNLOAD_LINK_ANDROID: 'https://play.google.com/store/apps/details?id=org.jitsi.meet',
+        MOBILE_DOWNLOAD_LINK_IOS: 'https://itunes.apple.com/us/app/jitsi-meet/id1165103905',
+        
+        SUPPORT_URL: 'https://{{ .Values.domain }}',
+        
+        CONNECTION_INDICATOR_AUTO_HIDE_ENABLED: true,
+        CONNECTION_INDICATOR_AUTO_HIDE_TIMEOUT: 5000,
+        CONNECTION_INDICATOR_DISABLED: false,
+        
+        VIDEO_LAYOUT_FIT: 'both',
+        FILM_STRIP_MAX_HEIGHT: 120,
+        
+        VERTICAL_FILMSTRIP: true,
+        
+        CLOSE_PAGE_GUEST_HINT: false,
+        
+        SHOW_PROMOTIONAL_CLOSE_PAGE: false,
+        
+        RANDOM_AVATAR_URL_PREFIX: false,
+        RANDOM_AVATAR_URL_SUFFIX: false,
+        
+        FILM_STRIP_MAX_HEIGHT: 120,
+        ENABLE_FEEDBACK_ANIMATION: false,
+        
+        DISABLE_TRANSCRIPTION_SUBTITLES: false,
+        
+        TILE_VIEW_MAX_COLUMNS: 5
+    };

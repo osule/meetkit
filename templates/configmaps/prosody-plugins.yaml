@@ -1,0 +1,126 @@
+{{- if .Values.auth.enableLobby }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "meetkit.fullname" . }}-prosody-plugins
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+data:
+  mod_muc_lobby_autostart.lua: |
+    -- Prosody module to auto-enable lobby for all MUC rooms
+    local jid_bare = require "util.jid".bare;
+
+    module:log("info", "MUC Lobby Autostart module loaded on %s", module:get_host());
+
+    local function is_healthcheck_room(room_jid)
+        local jid_str = tostring(room_jid);
+        if jid_str and jid_str:find("__jicofo%-health%-check") then
+            return true;
+        end
+        return false;
+    end
+
+    local function enable_lobby(room, actor_jid)
+        if not room then 
+            module:log("warn", "enable_lobby called with nil room");
+            return false; 
+        end
+        
+        local room_jid = tostring(room.jid);
+        
+        if is_healthcheck_room(room_jid) then
+            return false;
+        end
+
+        if room._data and room._data.lobbyroom then
+            module:log("info", "Lobby already enabled for room: %s", room_jid);
+            return true;
+        end
+
+        module:log("info", "AUTO-ENABLING LOBBY for room: %s (actor: %s)", room_jid, tostring(actor_jid));
+
+        if actor_jid then
+            local bare_actor = jid_bare(actor_jid);
+            module:log("info", "Adding moderator %s as member before enabling lobby", bare_actor);
+            room:set_affiliation(true, bare_actor, "member");
+        end
+
+        local success, err = pcall(function() room:set_members_only(true) end);
+        if not success then
+            module:log("error", "Failed to set members_only: %s", tostring(err));
+            return false;
+        end
+        
+        module:log("info", "Room %s members_only set to true", room_jid);
+
+        local event = {
+            room = room;
+            actor = actor_jid;
+            fields = {
+                ["muc#roomconfig_membersonly"] = true;
+            };
+            status_codes = {};
+        };
+
+        module:fire_event("muc-config-submitted", event);
+        module:log("info", "Fired muc-config-submitted event for room: %s", room_jid);
+        
+        if room._data and room._data.lobbyroom then
+            module:log("info", "Lobby room created successfully: %s -> %s", room_jid, room._data.lobbyroom);
+        else
+            module:log("warn", "Lobby room may not have been created for: %s", room_jid);
+        end
+
+        return true;
+    end
+
+    module:hook("muc-occupant-joined", function(event)
+        local room = event.room;
+        local occupant = event.occupant;
+
+        if not room then 
+            return; 
+        end
+        
+        local room_jid = tostring(room.jid);
+        
+        if is_healthcheck_room(room_jid) then 
+            return; 
+        end
+
+        local occupant_jid = nil;
+        if occupant then
+            for jid in occupant:each_session() do
+                occupant_jid = jid;
+                break;
+            end
+        end
+
+        if not occupant_jid then 
+            return; 
+        end
+
+        local bare_jid = jid_bare(occupant_jid);
+
+        -- Skip system users
+        if bare_jid and bare_jid:match("@auth%." .. "{{ .Values.xmppDomain | replace "." "\\." }}" .. "$") then
+            return;
+        end
+
+        -- Check if moderator (authenticated user, not guest)
+        local is_moderator = bare_jid and bare_jid:match("@" .. "{{ .Values.xmppDomain | replace "." "\\." }}" .. "$") and not bare_jid:match("@guest%." .. "{{ .Values.xmppDomain | replace "." "\\." }}" .. "$");
+
+        module:log("info", "OCCUPANT JOINED: %s (moderator: %s) in room %s", bare_jid, tostring(is_moderator), room_jid);
+
+        if is_moderator then
+            local has_lobby = room._data and room._data.lobbyroom;
+            
+            if not has_lobby then
+                module:log("info", "MODERATOR JOINED - enabling lobby for room: %s", room_jid);
+                enable_lobby(room, occupant_jid);
+            end
+        end
+    end, 100);
+
+    module:log("info", "MUC Lobby Autostart hooks registered");
+{{- end }}

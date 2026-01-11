@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "meetkit.fullname" . }}-web
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.replicaCount.web }}
+  selector:
+    matchLabels:
+      {{- include "meetkit.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        {{- include "meetkit.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+    spec:
+      containers:
+      - name: web
+        image: "{{ .Values.image.web.repository }}:{{ .Values.image.web.tag }}"
+        imagePullPolicy: {{ .Values.image.web.pullPolicy }}
+        envFrom:
+        - configMapRef:
+            name: {{ include "meetkit.fullname" . }}-config
+        {{- if eq .Values.auth.type "jwt" }}
+        env:
+        - name: JWT_APP_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.auth.jwt.secretName }}
+              key: jwt-secret
+        {{- end }}
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 443
+          name: https
+        resources:
+          {{- toYaml .Values.resources.web | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        volumeMounts:
+        - name: web-config
+          mountPath: /config
+        - name: web-custom-config
+          mountPath: /usr/share/jitsi-meet/config.js
+          subPath: config.js
+        - name: web-custom-config
+          mountPath: /usr/share/jitsi-meet/interface_config.js
+          subPath: interface_config.js
+      volumes:
+      - name: web-config
+        emptyDir: {}
+      - name: web-custom-config
+        configMap:
+          name: {{ include "meetkit.fullname" . }}-web-config

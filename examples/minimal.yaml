@@ -1,0 +1,15 @@
+# Minimal MeetKit Configuration
+# Quick start with JWT authentication
+
+domain: "meet.example.com"
+
+jvb:
+  advertiseIps: ["1.2.3.4"]  # Replace with your public IP
+
+auth:
+  type: jwt
+  jwt:
+    secretName: "jitsi-jwt"
+
+credentials:
+  secretName: "jitsi-credentials"

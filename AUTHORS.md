@@ -4,7 +4,7 @@ This file lists the contributors to the MeetKit project.
 
 ## Maintainers
 
-- [Add maintainer names and contact info]
+- Oluwafemi Sule (@osule)
 
 ## Contributors
 

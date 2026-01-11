@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "meetkit.fullname" . }}-web
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "meetkit.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "meetkit.fullname" . }}-prosody
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prosody
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5222
+    targetPort: 5222
+    protocol: TCP
+    name: xmpp-c2s
+  - port: 5347
+    targetPort: 5347
+    protocol: TCP
+    name: xmpp-component
+  - port: 5280
+    targetPort: 5280
+    protocol: TCP
+    name: bosh
+  selector:
+    {{- include "meetkit.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: prosody
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "meetkit.fullname" . }}-jvb
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jvb
+spec:
+  type: NodePort
+  ports:
+  - port: 10000
+    targetPort: 10000
+    protocol: UDP
+    name: rtp
+    nodePort: {{ .Values.jvb.nodePort }}
+  - port: 4443
+    targetPort: 4443
+    protocol: TCP
+    name: tcp-fallback
+  selector:
+    {{- include "meetkit.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: jvb
+---
+{{- if .Values.auth.oauth.google.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "meetkit.fullname" . }}-oauth
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "meetkit.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth
+{{- end }}

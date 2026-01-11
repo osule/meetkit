@@ -1,0 +1,186 @@
+{{- if .Values.auth.oauth.google.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "meetkit.fullname" . }}-oauth
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "meetkit.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: oauth
+  template:
+    metadata:
+      labels:
+        {{- include "meetkit.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: oauth
+    spec:
+      initContainers:
+      - name: setup-oauth
+        image: node:18-alpine
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          mkdir -p /app && cd /app
+          cat > package.json << 'EOF'
+          {
+            "name": "jitsi-oauth",
+            "version": "1.0.0",
+            "dependencies": {
+              "express": "^4.18.2",
+              "passport": "^0.6.0",
+              "passport-google-oauth20": "^2.0.0",
+              "express-session": "^1.17.3",
+              "jsonwebtoken": "^9.0.2"
+            }
+          }
+          EOF
+          
+          cat > server.js << 'EOFJS'
+          const express = require('express');
+          const passport = require('passport');
+          const GoogleStrategy = require('passport-google-oauth20').Strategy;
+          const jwt = require('jsonwebtoken');
+          const session = require('express-session');
+          
+          const app = express();
+          app.set('trust proxy', 1);
+          
+          app.use(session({
+            secret: process.env.JWT_SECRET,
+            resave: false,
+            saveUninitialized: true,
+            cookie: { secure: false }
+          }));
+          
+          app.use(passport.initialize());
+          app.use(passport.session());
+          
+          const callbackURL = 'https://' + process.env.DOMAIN + '/auth/google/callback';
+          const allowedDomains = (process.env.ALLOWED_DOMAINS || '').split(',').map(d => d.trim().toLowerCase()).filter(d => d);
+          
+          passport.use(new GoogleStrategy({
+            clientID: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            callbackURL: callbackURL,
+            proxy: true
+          }, (accessToken, refreshToken, profile, done) => {
+            const email = profile.emails?.[0]?.value || '';
+            const emailDomain = email.split('@')[1] || '';
+            
+            if (allowedDomains.length === 0 || allowedDomains.includes(emailDomain.toLowerCase())) {
+              return done(null, { id: profile.id, email, name: profile.displayName });
+            }
+            return done(null, false, { message: 'Email domain not allowed' });
+          }));
+          
+          passport.serializeUser((user, done) => done(null, user));
+          passport.deserializeUser((user, done) => done(null, user));
+          
+          app.get('/auth', (req, res, next) => {
+            req.session.room = req.query.room || '';
+            passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account' })(req, res, next);
+          });
+          
+          app.get('/auth/google/callback',
+            passport.authenticate('google', { failureRedirect: '/login-failed' }),
+            (req, res) => {
+              const room = req.session.room || '';
+              const now = Math.floor(Date.now() / 1000);
+              const appId = process.env.JWT_APP_ID;
+              
+              const payload = {
+                iss: appId,
+                aud: appId,
+                sub: process.env.XMPP_DOMAIN,
+                room: '*',
+                iat: now,
+                nbf: now - 10,
+                exp: now + (60 * 60 * 24),
+                context: {
+                  user: {
+                    id: req.user.id,
+                    name: req.user.name,
+                    email: req.user.email,
+                    moderator: true
+                  },
+                  features: {
+                    livestreaming: true,
+                    recording: true,
+                    lobby: true
+                  }
+                },
+                moderator: true
+              };
+              
+              const token = jwt.sign(payload, process.env.JWT_SECRET, { algorithm: 'HS256' });
+              const redirectUrl = room ? `https://${process.env.DOMAIN}/${room}?jwt=${token}` : `https://${process.env.DOMAIN}/?jwt=${token}`;
+              res.redirect(redirectUrl);
+            }
+          );
+          
+          app.get('/login-failed', (req, res) => {
+            res.send('<h1>Access Denied</h1><p>Your email domain is not authorized.</p>');
+          });
+          
+          app.listen(3000, () => console.log('OAuth portal running on port 3000'));
+          EOFJS
+          
+          npm install
+        volumeMounts:
+        - name: oauth-app
+          mountPath: /app
+      containers:
+      - name: oauth
+        image: node:18-alpine
+        ports:
+        - containerPort: 3000
+        env:
+        - name: GOOGLE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.auth.oauth.google.secretName }}
+              key: clientId
+        - name: GOOGLE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.auth.oauth.google.secretName }}
+              key: clientSecret
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.auth.jwt.secretName }}
+              key: jwt-secret
+        - name: JWT_APP_ID
+          value: {{ .Values.auth.jwt.appId | quote }}
+        - name: DOMAIN
+          value: {{ .Values.domain | quote }}
+        - name: XMPP_DOMAIN
+          value: {{ .Values.xmppDomain | quote }}
+        - name: ALLOWED_DOMAINS
+          value: {{ .Values.auth.allowedDomains | quote }}
+        command: ["/bin/sh", "-c"]
+        args:
+        - "cd /app && node server.js"
+        livenessProbe:
+          httpGet:
+            path: /auth
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /auth
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        volumeMounts:
+        - name: oauth-app
+          mountPath: /app
+      volumes:
+      - name: oauth-app
+        emptyDir: {}
+{{- end }}

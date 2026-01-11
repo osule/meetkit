@@ -1,0 +1,108 @@
+# Required Configuration
+domain: ""  # REQUIRED: Your domain (e.g., meet.company.com)
+
+# Networking
+jvb:
+  advertiseIps: []  # REQUIRED: List of public IPs for JVB (e.g., ["1.2.3.4"])
+  hostPort: null  # Optional: Bind to host port (e.g., 10000)
+  nodePort: 30000  # NodePort for JVB service
+
+# Authentication
+auth:
+  type: jwt  # jwt, internal, or none
+  enableGuests: true
+  enableLobby: true
+  allowedDomains: ""  # Comma-separated domains (e.g., "company.com,partner.com")
+  jwt:
+    appId: "jitsi"
+    secretName: ""  # REQUIRED: Secret containing JWT key (key: jwt-secret)
+  oauth:
+    google:
+      enabled: false
+      secretName: ""  # Secret containing clientId and clientSecret keys
+
+# Credentials - All reference Kubernetes secrets
+credentials:
+  secretName: ""  # REQUIRED: Secret with jicofo-password, jvb-password, prosody-password keys
+
+# Images
+image:
+  web:
+    repository: jitsi/web
+    tag: "stable-10532-1"
+    pullPolicy: IfNotPresent
+  jicofo:
+    repository: jitsi/jicofo
+    tag: "stable-10532-1"
+    pullPolicy: IfNotPresent
+  jvb:
+    repository: jitsi/jvb
+    tag: "stable-10532-1"
+    pullPolicy: IfNotPresent
+  prosody:
+    repository: jitsi/prosody
+    tag: "stable-10532-1"
+    pullPolicy: IfNotPresent
+
+# Ingress
+ingress:
+  enabled: true
+  className: traefik
+  tls: true
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+
+# Replicas
+replicaCount:
+  web: 1
+  jicofo: 1
+  jvb: 1
+  prosody: 1
+
+# Resources
+resources:
+  web:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  jicofo:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  jvb:
+    limits:
+      cpu: 300m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  prosody:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Advanced Configuration
+xmppDomain: "meet.jitsi"
+region: "us-east-1"
+environment: "production"
+
+# Feature Flags
+features:
+  enableP2p: true
+  enableLayerSuspension: true
+  enableSimulcast: true
+  enableNoAudioDetection: true
+  enableWelcomePage: true
+  startBitrate: "800"
+  desktopSharingFrameRate:
+    min: 5
+    max: 5

@@ -1,0 +1,107 @@
+{{- include "meetkit.validateValues" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "meetkit.fullname" . }}-config
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+data:
+  PUBLIC_URL: "https://{{ .Values.domain }}"
+  
+  # Internal XMPP domain
+  XMPP_DOMAIN: {{ .Values.xmppDomain | quote }}
+  XMPP_AUTH_DOMAIN: "auth.{{ .Values.xmppDomain }}"
+  XMPP_GUEST_DOMAIN: "guest.{{ .Values.xmppDomain }}"
+  XMPP_MUC_DOMAIN: "conference.{{ .Values.xmppDomain }}"
+  XMPP_INTERNAL_MUC_DOMAIN: "internal.auth.{{ .Values.xmppDomain }}"
+  XMPP_RECORDER_DOMAIN: "recorder.{{ .Values.xmppDomain }}"
+  XMPP_LOBBY_MUC: "lobby.{{ .Values.xmppDomain }}"
+  
+  # Lobby settings
+  ENABLE_LOBBY: {{ .Values.auth.enableLobby | ternary "1" "0" | quote }}
+  LOBBY_AUTOSTART: {{ .Values.auth.enableLobby | ternary "true" "false" | quote }}
+  ENABLE_LOBBY_FOR_ALL: {{ .Values.auth.enableLobby | ternary "true" "false" | quote }}
+  AUTO_ENABLE_LOBBY: {{ .Values.auth.enableLobby | ternary "true" "false" | quote }}
+  DEFAULT_ROOM_LOBBY_ENABLED: {{ .Values.auth.enableLobby | ternary "true" "false" | quote }}
+  
+  # Prosody modules
+  XMPP_MUC_MODULES: {{ .Values.auth.enableLobby | ternary "muc_lobby_autostart" "" | quote }}
+  XMPP_MODULES: ""
+  XMPP_INTERNAL_MUC_MODULES: ""
+
+  # Prosody connection settings
+  XMPP_SERVER: "{{ include "meetkit.fullname" . }}-prosody.{{ .Release.Namespace }}.svc.cluster.local"
+  XMPP_PORT: "5222"
+  XMPP_BOSH_URL_BASE: "http://{{ include "meetkit.fullname" . }}-prosody.{{ .Release.Namespace }}.svc.cluster.local:5280"
+  PROSODY_HOST: "{{ include "meetkit.fullname" . }}-prosody.{{ .Release.Namespace }}.svc.cluster.local"
+  
+  # XMPP settings
+  ENABLE_XMPP_WEBSOCKET: "1"
+  XMPP_CROSS_DOMAIN: "true"
+  PROSODY_ADMINS: "focus@auth.{{ .Values.xmppDomain }},jvb@auth.{{ .Values.xmppDomain }}"
+  PROSODY_C2S_REQUIRE_ENCRYPTION: "false"
+  PROSODY_S2S_REQUIRE_ENCRYPTION: "false"
+  
+  # BOSH/WebSocket timeout settings
+  BOSH_TIMEOUT: "120"
+  BOSH_MAX_INACTIVITY: "120"
+  WEBSOCKET_KEEPALIVE_INTERVAL: "30"
+  PROSODY_C2S_LIMIT: "512kb/s"
+  PROSODY_S2S_LIMIT: "512kb/s"
+  
+  # Jicofo settings
+  JICOFO_AUTH_USER: "focus"
+  JICOFO_RESERVATION_REST_BASE_URL: ""
+  JICOFO_ENABLE_AUTH: {{ eq .Values.auth.type "jwt" | ternary "1" "0" | quote }}
+  JICOFO_AUTH_TYPE: {{ .Values.auth.type | quote }}
+  JICOFO_ENABLE_HEALTH_CHECKS: "true"
+  
+  # JVB settings
+  JVB_AUTH_USER: "jvb"
+  JVB_BREWERY_MUC: "jvbbrewery"
+  JVB_XMPP_AUTH_DOMAIN: "auth.{{ .Values.xmppDomain }}"
+  JVB_XMPP_INTERNAL_MUC_DOMAIN: "internal.auth.{{ .Values.xmppDomain }}"
+  
+  # Authentication
+  {{- if eq .Values.auth.type "jwt" }}
+  AUTH_TYPE: "jwt"
+  ENABLE_AUTH: "1"
+  ENABLE_GUESTS: {{ .Values.auth.enableGuests | ternary "1" "0" | quote }}
+  JWT_APP_ID: {{ .Values.auth.jwt.appId | quote }}
+  JWT_ACCEPTED_ISSUERS: {{ .Values.auth.jwt.appId | quote }}
+  JWT_ACCEPTED_AUDIENCES: {{ .Values.auth.jwt.appId | quote }}
+  JWT_ALLOW_EMPTY: "0"
+  JWT_ASAP_KEYSERVER: ""
+  TOKEN_AUTH_URL: "https://{{ .Values.domain }}/auth?room={room}"
+  ENABLE_AUTO_OWNER: "true"
+  {{- else if eq .Values.auth.type "internal" }}
+  AUTH_TYPE: "internal"
+  ENABLE_AUTH: "1"
+  ENABLE_GUESTS: {{ .Values.auth.enableGuests | ternary "1" "0" | quote }}
+  {{- else }}
+  AUTH_TYPE: "none"
+  ENABLE_AUTH: "0"
+  ENABLE_GUESTS: "1"
+  {{- end }}
+  
+  # Feature flags
+  ENABLE_RECORDING: "0"
+  ENABLE_TRANSCRIPTIONS: "0"
+  ENABLE_LETSENCRYPT: "false"
+  ENABLE_HTTP_REDIRECT: "false"
+  DISABLE_HTTPS: "true"
+  ENABLE_HSTS: "false"
+  ENABLE_WELCOME_PAGE: {{ .Values.features.enableWelcomePage | ternary "true" "false" | quote }}
+  ENABLE_CLOSE_PAGE: "false"
+  ENABLE_NOAUDIODETECTION: {{ .Values.features.enableNoAudioDetection | ternary "true" "false" | quote }}
+  ENABLE_P2P: {{ .Values.features.enableP2p | ternary "true" "false" | quote }}
+  ENABLE_LAYER_SUSPENSION: {{ .Values.features.enableLayerSuspension | ternary "true" "false" | quote }}
+  START_BITRATE: {{ .Values.features.startBitrate | quote }}
+  DESKTOP_SHARING_FRAMERATE_MIN: {{ .Values.features.desktopSharingFrameRate.min | quote }}
+  DESKTOP_SHARING_FRAMERATE_MAX: {{ .Values.features.desktopSharingFrameRate.max | quote }}
+  ENABLE_SIMULCAST: {{ .Values.features.enableSimulcast | ternary "true" "false" | quote }}
+  
+  # Deployment info
+  DEPLOYMENTINFO_SHARD: {{ .Release.Name | quote }}
+  DEPLOYMENTINFO_REGION: {{ .Values.region | quote }}
+  DEPLOYMENTINFO_USERREGION: {{ .Values.region | quote }}

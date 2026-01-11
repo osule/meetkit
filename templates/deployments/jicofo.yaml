@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "meetkit.fullname" . }}-jicofo
+  labels:
+    {{- include "meetkit.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jicofo
+spec:
+  replicas: {{ .Values.replicaCount.jicofo }}
+  selector:
+    matchLabels:
+      {{- include "meetkit.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: jicofo
+  template:
+    metadata:
+      labels:
+        {{- include "meetkit.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: jicofo
+    spec:
+      containers:
+      - name: jicofo
+        image: "{{ .Values.image.jicofo.repository }}:{{ .Values.image.jicofo.tag }}"
+        imagePullPolicy: {{ .Values.image.jicofo.pullPolicy }}
+        envFrom:
+        - configMapRef:
+            name: {{ include "meetkit.fullname" . }}-config
+        env:
+        - name: JICOFO_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.credentials.secretName }}
+              key: jicofo-password
+        - name: JICOFO_COMPONENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.credentials.secretName }}
+              key: jicofo-password
+        - name: XMPP_SERVER
+          value: "{{ include "meetkit.fullname" . }}-prosody.{{ .Release.Namespace }}.svc.cluster.local"
+        - name: JICOFO_AUTH_USER
+          value: "focus"
+        - name: ENABLE_AUTO_OWNER
+          value: "true"
+        {{- if .Values.auth.enableLobby }}
+        - name: ENABLE_LOBBY
+          value: "true"
+        - name: JICOFO_ENABLE_LOBBY
+          value: "true"
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources.jicofo | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /about/health
+            port: 8888
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /about/health
+            port: 8888
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        volumeMounts:
+        - name: jicofo-config
+          mountPath: /config
+      volumes:
+      - name: jicofo-config
+        emptyDir: {}

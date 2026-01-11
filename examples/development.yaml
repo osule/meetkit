@@ -1,0 +1,56 @@
+# Development MeetKit Configuration
+# Minimal resources for testing
+
+domain: "meet.dev.local"
+
+jvb:
+  advertiseIps: ["192.168.1.100"]
+
+auth:
+  type: none  # No authentication for dev
+
+credentials:
+  secretName: "jitsi-credentials"
+
+ingress:
+  enabled: true
+  className: traefik
+  tls: false  # No TLS for local dev
+
+replicaCount:
+  web: 1
+  jicofo: 1
+  jvb: 1
+  prosody: 1
+
+resources:
+  web:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  jicofo:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  jvb:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  prosody:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+environment: "development"

@@ -1,0 +1,78 @@
+# Production MeetKit Configuration
+# Full-featured setup with Google OAuth and resource limits
+
+domain: "meet.company.com"
+
+jvb:
+  advertiseIps: ["1.2.3.4"]
+  nodePort: 30000
+
+auth:
+  type: jwt
+  enableGuests: true
+  enableLobby: true
+  allowedDomains: "company.com"
+  jwt:
+    appId: "jitsi"
+    secretName: "jitsi-jwt"
+  oauth:
+    google:
+      enabled: true
+      secretName: "google-oauth"
+
+credentials:
+  secretName: "jitsi-credentials"
+
+ingress:
+  enabled: true
+  className: traefik
+  tls: true
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+replicaCount:
+  web: 2
+  jicofo: 1
+  jvb: 2
+  prosody: 1
+
+resources:
+  web:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  jicofo:
+    limits:
+      cpu: 300m
+      memory: 512Mi
+    requests:
+      cpu: 150m
+      memory: 256Mi
+  jvb:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  prosody:
+    limits:
+      cpu: 300m
+      memory: 512Mi
+    requests:
+      cpu: 150m
+      memory: 256Mi
+
+region: "us-east-1"
+environment: "production"
+
+features:
+  enableP2p: true
+  enableLayerSuspension: true
+  enableSimulcast: true
+  enableNoAudioDetection: true
+  enableWelcomePage: true
+  startBitrate: "800"
